@@ -17,9 +17,9 @@ const forceY = d3.forceY(height / 2).strength(0.1)
 
 var simulation = d3.forceSimulation()
     .force("link_lover", d3.forceLink().id(function (d) { return d.id; }))
-    .force("link_killed", d3.forceLink().id(function (d) { return d.id; }))//.distance(300))
-    .force("link_parents", d3.forceLink().id(function (d) { return d.id; }))//.distance(1))
-    .force("link_spouse", d3.forceLink().id(function (d) { return d.id; }))
+    .force("link_killed", d3.forceLink().id(function (d) { return d.id; }))
+    .force("link_parents", d3.forceLink().id(function (d) { return d.id; }))
+    .force("link_spouse", d3.forceLink().id(function (d) { return d.id; }).distance(20))
     .force("link_allegiance", d3.forceLink().id(function (d) { return d.id; }))
     .force("link_siblings", d3.forceLink().id(function (d) { return d.id; }))
 
@@ -41,7 +41,7 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
     filteredSpouse = graph.edges.filter(x => x.relation == "spouse")
     filteredAllegiance = graph.edges.filter(x => x.relation == "allegiance")
     filteredSiblings = graph.edges.filter(x => x.relation == "sibling")
-    var links = [filteredKilled, filteredSiblings, filteredLover, filteredParents, filteredSpouse, filteredAllegiance]
+    var links = [filteredKilled, filteredParents, filteredLover, filteredSiblings, filteredSpouse, filteredAllegiance]
 
     svgLink = setSvgLink(links);
 
