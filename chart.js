@@ -1,6 +1,7 @@
 /* TODO : 
-// - risolvere bug ordine colori
-// 
+// - gestire forze diverse
+// - aggiungere filtro nodi
+// - fixare sovrapposizione archi e posizione freccia
 */
 
 var width = 960,
@@ -18,53 +19,13 @@ var svg = d3
 	)
 	.append("g");
 
+// gravity
 const forceX = d3.forceX(width / 2).strength(0.1);
 const forceY = d3.forceY(height / 2).strength(0.1);
 
 var simulation = d3
 	.forceSimulation()
-	/*.force(
-		"link_lover",
-		d3.forceLink().id(function (d) {
-			return d.id;
-		})
-	)
-	.force(
-		"link_killed",
-		d3.forceLink().id(function (d) {
-			return d.id;
-		})
-	)
-	.force(
-		"link_parents",
-		d3.forceLink().id(function (d) {
-			return d.id;
-		})
-	)
-	.force(
-		"link_spouse",
-		d3
-			.forceLink()
-			.id(function (d) {
-				return d.id;
-			})
-			.distance(20)
-	)
-	.force(
-		"link_allegiance",
-		d3.forceLink().id(function (d) {
-			return d.id;
-		})
-	)
-	.force(
-		"link_siblings",
-		d3.forceLink().id(function (d) {
-			return d.id;
-		})
-	)*/
-
-	.force("charge", d3.forceManyBody().strength(-500))
-	//  .force("center", d3.forceCenter(width / 2, height / 2))
+	.force("charge", d3.forceManyBody().strength(-2000))
 	.force("x", forceX)
 	.force("y", forceY);
 
@@ -77,6 +38,7 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 	graph = buildData(nodes, edges);
 	//console.log(graph.edges);
 
+	// edges filtered by relation type
 	filteredLover = graph.edges.filter((x) => x.relation == "lover");
 	filteredKilled = graph.edges.filter((x) => x.relation == "killed");
 	filteredParents = graph.edges.filter(
@@ -85,30 +47,21 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 	filteredSpouse = graph.edges.filter((x) => x.relation == "spouse");
 	filteredAllegiance = graph.edges.filter((x) => x.relation == "allegiance");
 	filteredSiblings = graph.edges.filter((x) => x.relation == "sibling");
+
 	var links = [];
+	// multiple edges on same node will be bended
 	var duplicatedLinks = [];
 
+	// handling edge filtering
 	d3.selectAll(".filter_button").on("change", function () {
-		d3.selectAll(".link").remove();
-
 		links = [];
+		d3.selectAll(".link").remove();
 		simulation.force("link_lover", null);
 		simulation.force("link_killed", null);
 		simulation.force("link_parents", null);
 		simulation.force("link_spouse", null);
 		simulation.force("link_allegiance", null);
 		simulation.force("link_siblings", null);
-
-		function getCheckedBoxes(chkboxName) {
-			var checkboxes = document.getElementsByName(chkboxName);
-			var checkboxesChecked = [];
-			for (var i = 0; i < checkboxes.length; i++) {
-				if (checkboxes[i].checked) {
-					checkboxesChecked.push(checkboxes[i].defaultValue);
-				}
-			}
-			return checkboxesChecked.length > 0 ? checkboxesChecked : null;
-		}
 
 		var checkedBoxes = getCheckedBoxes("checkbtn");
 		//console.log(checkedBoxes);
@@ -119,7 +72,7 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 						links.push(filteredLover);
 						simulation.force(
 							"link_lover",
-							d3.forceLink(filteredLover).distance(50)
+							d3.forceLink(filteredLover).distance(100)
 						);
 						break;
 
@@ -140,7 +93,7 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 						links.push(filteredKilled);
 						simulation.force(
 							"link_killed",
-							d3.forceLink(filteredKilled).distance(100)
+							d3.forceLink(filteredKilled).distance(300)
 						);
 						break;
 
@@ -148,7 +101,7 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 						links.push(filteredSpouse);
 						simulation.force(
 							"link_spouse",
-							d3.forceLink(filteredSpouse).distance(50)
+							d3.forceLink(filteredSpouse).distance(100)
 						);
 						break;
 
@@ -156,7 +109,7 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 						links.push(filteredAllegiance);
 						simulation.force(
 							"link_allegiance",
-							d3.forceLink(filteredAllegiance).distance(50)
+							d3.forceLink(filteredAllegiance).distance(300)
 						);
 						break;
 					default:
@@ -164,23 +117,23 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 				}
 			});
 
-			svgLink = setSvgLink(links);
 			duplicatedLinks = getDuplicatedLinks(links);
+			svgLink = setSvgLink(links);
 		}
 		if (!d3.event.active) {
 			simulation.alpha(1).restart();
 		}
 	});
 
-	svgLink = setSvgLink(links);
+	svgLink = setSvgLink(links, duplicatedLinks);
 
-	//arrow
+	// arrow for straight line
 	svg
 		.append("svg:defs")
 		.append("svg:marker")
 		.attr("id", "triangle")
 		.attr("viewBox", "0 -5 10 10")
-		.attr("refX", 10.5)
+		.attr("refX", 14.5)
 		.attr("refY", 0)
 		.attr("markerWidth", 30)
 		.attr("markerHeight", 30)
@@ -189,25 +142,22 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 		.append("path")
 		.attr("d", "M0,-2L4,0L0,2")
 		.style("fill", "black");
+	// arrow for bended line
+	svg
+		.append("svg:defs")
+		.append("svg:marker")
+		.attr("id", "triangle-bend")
+		.attr("viewBox", "0 -5 10 10")
+		.attr("refX", 14.5)
+		.attr("refY", -1)
+		.attr("markerWidth", 30)
+		.attr("markerHeight", 30)
+		.attr("markerUnits", "userSpaceOnUse")
+		.attr("orient", "auto")
+		.append("path")
+		.attr("d", "M0,-2L4,0L0,2")
+		.style("fill", "black");
 
-	/*
-    OLD CODE
-    var node = svg
-		.append("g")
-		.attr("class", "nodes")
-		.selectAll("circle")
-		.data(graph.nodes)
-		.enter()
-		.append("circle")
-		.attr("r", 6)
-		.call(
-			d3
-				.drag()
-				.on("start", dragstarted)
-				.on("drag", dragged)
-				.on("end", dragended)
-		);
-    */
 	house_names = getHouseNames(graph);
 	svgNode = setSvgNode(graph.nodes, house_names);
 
@@ -224,15 +174,6 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 		});
 
 	simulation.nodes(graph.nodes).on("tick", ticked);
-
-	/*
-	simulation.force("link_lover").links(filteredLover);
-	simulation.force("link_killed").links(filteredKilled);
-	simulation.force("link_parents").links(filteredParents);
-	simulation.force("link_spouse").links(filteredSpouse);
-	simulation.force("link_allegiance").links(filteredAllegiance);
-	simulation.force("link_siblings").links(filteredSiblings);
-    */
 
 	function ticked() {
 		//edge
@@ -259,21 +200,6 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 					d.target.y
 				);
 			});
-
-			/*
-                .attr("x1", function (d) {
-					return d.source.x;
-				})
-				.attr("y1", function (d) {
-					return d.source.y;
-				})
-				.attr("x2", function (d) {
-					return d.target.x;
-				})
-				.attr("y2", function (d) {
-					return d.target.y;
-				});
-                */
 		}
 
 		//node
@@ -286,21 +212,6 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 					return d.y - 35;
 				});
 		}
-
-		/*
-        OLD CODE
-        node
-			.attr("r", 20)
-			.style("fill", "#d9d9d9")
-			.style("stroke", "#969696")
-			.style("stroke-width", "1px")
-			.attr("cx", function (d) {
-				return d.x;
-			})
-			.attr("cy", function (d) {
-				return d.y;
-			});
-        */
 
 		label
 			.attr("x", function (d) {
@@ -363,16 +274,23 @@ function setSvgLink(links) {
 			svgLink[i] = svg
 				.append("g")
 				.attr("class", "link")
+				.lower()
 				.style("stroke", colors[relationType])
 				.style("fill-opacity", 0)
 				.selectAll("path")
 				.data(links[i])
 				.enter()
 				.append("path")
-				.attr("marker-end", "url(#triangle)");
+				//.attr("marker-end", "#triangle-line");
+				.attr("marker-end", (d) =>
+					getDuplicatedLinks(links).includes(d)
+						? "url(#triangle-bend)"
+						: "url(#triangle)"
+				);
 		} else {
 			svgLink[i] = svg
 				.append("g")
+				.lower()
 				.attr("class", "link")
 				.style("stroke", colors[relationType])
 				.style("fill-opacity", 0)
@@ -405,8 +323,6 @@ function setSvgNode(nodes, houseNames) {
 					.on("drag", dragged)
 					.on("end", dragended)
 			);
-
-		console.log(houseNames[0]);
 	}
 
 	return svgNode;
@@ -425,11 +341,25 @@ function getDuplicatedLinks(links) {
 		const edge = allLinks[i];
 		for (let j = i + 1; j < allLinks.length; j++) {
 			const edge2 = allLinks[j];
-			if (edge.source == edge2.source && edge.target == edge2.target)
+			if (
+				(edge.source == edge2.source && edge.target == edge2.target) ||
+				(edge.source == edge2.target && edge.target == edge2.source)
+			)
 				duplicatedLinks.push(edge);
 		}
 	}
 	return duplicatedLinks;
+}
+
+function getCheckedBoxes(chkboxName) {
+	var checkboxes = document.getElementsByName(chkboxName);
+	var checkboxesChecked = [];
+	for (var i = 0; i < checkboxes.length; i++) {
+		if (checkboxes[i].checked) {
+			checkboxesChecked.push(checkboxes[i].defaultValue);
+		}
+	}
+	return checkboxesChecked.length > 0 ? checkboxesChecked : null;
 }
 
 function buildData(nodes, edges) {
