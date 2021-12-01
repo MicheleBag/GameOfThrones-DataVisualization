@@ -184,13 +184,15 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 		.attr("refY", 0)
 		.attr("markerWidth", 30)
 		.attr("markerHeight", 30)
-		//.attr("markerUnits", "userSpaceOnUse")
+		.attr("markerUnits", "userSpaceOnUse")
 		.attr("orient", "auto")
 		.append("path")
 		.attr("d", "M0,-2L4,0L0,2")
 		.style("fill", "black");
 
-	var node = svg
+	/*
+    OLD CODE
+    var node = svg
 		.append("g")
 		.attr("class", "nodes")
 		.selectAll("circle")
@@ -205,6 +207,9 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 				.on("drag", dragged)
 				.on("end", dragended)
 		);
+    */
+	house_names = getHouseNames(graph);
+	svgNode = setSvgNode(graph.nodes, house_names);
 
 	var label = svg
 		.append("g")
@@ -230,6 +235,7 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
     */
 
 	function ticked() {
+		//edge
 		for (i = 0; i < svgLink.length; i++) {
 			svgLink[i].attr("d", function (d) {
 				dx = d.target.x - d.source.x;
@@ -270,7 +276,20 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
                 */
 		}
 
-		node
+		//node
+		for (i = 0; i < svgNode.length; i++) {
+			svgNode[i]
+				.attr("x", function (d) {
+					return d.x - 35;
+				})
+				.attr("y", function (d) {
+					return d.y - 35;
+				});
+		}
+
+		/*
+        OLD CODE
+        node
 			.attr("r", 20)
 			.style("fill", "#d9d9d9")
 			.style("stroke", "#969696")
@@ -281,16 +300,17 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 			.attr("cy", function (d) {
 				return d.y;
 			});
+        */
 
 		label
 			.attr("x", function (d) {
-				return d.x;
+				return d.x + 40;
 			})
 			.attr("y", function (d) {
-				return d.y;
+				return d.y + 10;
 			})
 			.style("font-size", "20px")
-			.style("fill", "#4393c3");
+			.style("fill", "#00000");
 	}
 });
 
@@ -309,8 +329,7 @@ function dragended(d) {
 	d.fy = null;
 }
 
-function getNodeHouse() {
-	console.log(graph.nodes);
+function getHouseNames(graph) {
 	const house = graph.nodes.reduce((house_birth, value) => {
 		if (!house_birth[value["house-birth"]]) {
 			house_birth[value["house-birth"]] = [];
@@ -318,7 +337,10 @@ function getNodeHouse() {
 		house_birth[value["house-birth"]].push(value);
 		return house_birth;
 	}, {});
-	houseNames = house.forEach();
+	houseNames = Object.keys(house);
+	//add groups of nodes without a house-birth
+	houseNames.push(undefined);
+	return houseNames;
 }
 
 function setSvgLink(links) {
@@ -361,6 +383,33 @@ function setSvgLink(links) {
 		}
 	}
 	return svgLink;
+}
+
+function setSvgNode(nodes, houseNames) {
+	svgNode = [];
+	for (i = 0; i < houseNames.length; i++) {
+		svgNode[i] = svg
+			.append("g")
+			.attr("class", "nodes")
+			.selectAll("image")
+			.data(nodes.filter((x) => x["house-birth"] == houseNames[i]))
+			.enter()
+			.append("image")
+			.attr("xlink:href", "housesImages/" + houseNames[i] + ".png")
+			.attr("width", 70)
+			.attr("height", 70)
+			.call(
+				d3
+					.drag()
+					.on("start", dragstarted)
+					.on("drag", dragged)
+					.on("end", dragended)
+			);
+
+		console.log(houseNames[0]);
+	}
+
+	return svgNode;
 }
 
 function getDuplicatedLinks(links) {
@@ -407,6 +456,11 @@ function buildData(nodes, edges) {
 					attributes[childNode.attributes.key.nodeValue] = childNode.innerHTML;
 					if (!workingOnEdges)
 						attributes["id"] = element.attributes.id.nodeValue;
+
+					if (childNode.attributes.key.nodeValue == "group") {
+						if (attributes["house-birth"] == undefined)
+							attributes["house-birth"] = childNode.innerHTML;
+					}
 					// add edge endpoints
 					if (workingOnEdges) {
 						attributes["source"] = element.attributes.source.nodeValue;
