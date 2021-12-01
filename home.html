@@ -3,7 +3,19 @@
 </head>
 
 <body>
-    <svg width="80%" height="100"></svg>
+<div>
+    <div style="width: 80%; float:left; border: solid; box-sizing: border-box;">
+        <svg width="80%" height="100"></svg>
+     </div>
+     <div style="width: 20%; float:right" class="filter_options">
+        <p>Filter options</p>
+        <input class="filter_button" value="family" type="checkbox" name="checkbtn" >Family</input><br>
+        <input class="filter_button" value="killed" type="checkbox" name="checkbtn" >Killed</input><br>
+        <input class="filter_button" value="allegiance" type="checkbox" name="checkbtn" >Allegiance</input><br>
+        <input class="filter_button" value="spouse" type="checkbox" name="checkbtn" >Spouse</input><br>
+        <input class="filter_button" value="lover" type="checkbox" name="checkbtn" >Lover</input><br>
+    </div>
+</div>
     <!-- Include d3.js from a CDN. -->
     <script src="https://d3js.org/d3.v4.min.js"></script>
 
