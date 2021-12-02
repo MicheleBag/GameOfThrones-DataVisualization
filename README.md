@@ -1,4 +1,7 @@
 <html>  
+    <head>
+        <title>GoT-Data Visualization</title>
+    </head>
     <style>
         div {font-family: Arial, Helvetica, sans-serif;}
         .line{
@@ -16,11 +19,7 @@
         .green{ background:green;}
 
         h3{ margin: auto;}
-
     </style>
-    <head>
-        <title>GoT-Data Visualization</title>
-    </head>
     <body>
         <div>
             <div id="svg_container" style="width: 80%; float:left; border: solid; box-sizing: border-box;">
