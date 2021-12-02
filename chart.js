@@ -214,7 +214,6 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 	// on change range bar updates nodes force
 	d3.select(".charge").on("change", function () {
 		var range = document.getElementsByName("charge");
-		console.log(range[0].value);
 		charge = range[0].value;
 
 		// updating nodes
@@ -635,7 +634,6 @@ function buildData(nodes, edges) {
 
 // on mouse over render tooltip
 var mouseover = function (d) {
-	console.log(d);
 	// check if user is dragging a node
 	if (dragActive == false) {
 		var house = d["house-birth"];
