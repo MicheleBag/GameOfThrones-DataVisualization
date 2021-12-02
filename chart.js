@@ -1,6 +1,6 @@
 /* TODO : 
 // - AGGIUNGERE LABEL
-// - all'inizio non funziona il filtro archi
+// 
 // - gestire forze quando si aggiundono più relazioni
 */
 
@@ -49,13 +49,16 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 	filteredSiblings = graph.edges.filter((x) => x.relation == "sibling");
 
 	var links = [];
-	var nods = graph.nodes;
+	var nodsList = graph.nodes;
+	// all nodes in array based on houses
+	var nods = allNodesByHouses(graph);
 
+	// list of all house names
 	house_names = getHouseNames(graph);
-	undefined_names = getUndefinedNames(graph)
-	filtered_nodes = house_names.concat(undefined_names)
 
-	var filteredHouse = house_names.concat(undefined_names);
+	// name of char with no house-birth
+	undefined_names = getUndefinedNames(graph);
+	filteredHouse = house_names.concat(undefined_names);
 
 	// multiple edges on same node will be bended
 	var duplicatedLinks = [];
@@ -89,11 +92,11 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 						links.push(filteredSiblings);
 						simulation.force(
 							"link_parents",
-							d3.forceLink(filteredParents).distance(100)
+							d3.forceLink(filteredParents).distance(300)
 						);
 						simulation.force(
 							"link_siblings",
-							d3.forceLink(filteredSiblings).distance(100)
+							d3.forceLink(filteredSiblings).distance(300)
 						);
 						break;
 
@@ -146,53 +149,62 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 		var checkedBoxes = getCheckedBoxes("checkbtn_nodes");
 		if (checkedBoxes != null) {
 			checkedBoxes.forEach((element) => {
-				// da considerare anche le casate senza "house" come prefisso
-				if (element == "undefined"){
-					undefined_names.forEach(element=>{
+				if (element == "undefined") {
+					undefined_names.forEach((element) => {
 						filteredHouse.push(element);
-					})
+					});
+					filteredNods = graph.nodes.filter(
+						(x) => x["house-birth"] == undefined
+					);
+				} else {
+					filteredHouse.push(element);
+					filteredNods = graph.nodes.filter((x) => x["house-birth"] == element);
 				}
-				else filteredHouse.push(element);
-				filteredNods = graph.nodes.filter(
-					(x) => x["house-birth"] == element 
-				);
 				nods.push(filteredNods);
 				nNods += filteredHouse.length;
 			});
-
-			/*label = svg
-				.append("g")
-				.attr("class", "labels")
-				.selectAll("text")
-				.data(nods)
-				.enter()
-				.append("text")
-				.attr("class", "label")
-				.text(function (d) {
-					return d.name;
-				});*/
-			console.log(filteredHouse)
-			console.log(house_names)
-			svgNode = setSvgNode(graph.nodes, filteredHouse, house_names);
-			forceNode = (-2000 * nNods + 1) / graph.nodes.length;
-			simulation.force(
-				"initial_charge",
-				d3.forceManyBody().strength(forceNode)
-			);
-
-			// updating links
-			var rel_chkboxs = d3.selectAll(".filter_relation");
-			rel_chkboxs.dispatch("change");
+		} else {
+			// no checkbox selected means all nodes rendered
+			nods = allNodesByHouses(graph);
+			filteredHouse = getHouseNames(graph).concat(getUndefinedNames(graph));
+			nNods = graph.nodes.length;
 		}
+
+		// update label
+		nodsList = [];
+		for (let i = 0; i < nods.length; i++) {
+			nods[i].forEach((element) => {
+				nodsList.push(element);
+			});
+		}
+		label = svg
+			.append("g")
+			.attr("class", "labels")
+			.selectAll("text")
+			.data(nodsList)
+			.enter()
+			.append("text")
+			.attr("class", "label")
+			.text(function (d) {
+				return d.name;
+			});
+
+		// setting force based on #nodes rendered
+		svgNode = setSvgNode(graph.nodes, filteredHouse, house_names);
+		var forceNode = (-900 * nNods) / graph.nodes.length - 600;
+		simulation.force("initial_charge", d3.forceManyBody().strength(forceNode));
+
+		// updating links
+		var rel_chkboxs = d3.selectAll(".filter_relation");
+		rel_chkboxs.dispatch("change");
+
 		if (!d3.event.active) {
 			simulation.alpha(1).restart();
 		}
 	});
 
 	svgLink = setSvgLink(links, duplicatedLinks);
-	console.log(filteredHouse)
-	svgNode = setSvgNode(nods, filteredHouse, house_names);
-
+	svgNode = setSvgNode(graph.nodes, filteredHouse, house_names);
 
 	// arrow for straight line
 	svg
@@ -225,15 +237,11 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 		.attr("d", "M0,-2L4,0L0,2")
 		.style("fill", "black");
 
-
-	
-	
-
 	var label = svg
 		.append("g")
 		.attr("class", "labels")
 		.selectAll("text")
-		.data(graph.nodes)
+		.data(nodsList)
 		.enter()
 		.append("text")
 		.attr("class", "label")
@@ -241,7 +249,7 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 			return d.name;
 		});
 
-	simulation.nodes(nods).on("tick", ticked);
+	simulation.nodes(graph.nodes).on("tick", ticked);
 
 	function ticked() {
 		//edge
@@ -308,6 +316,17 @@ function dragended(d) {
 	d.fy = null;
 }
 
+function allNodesByHouses(graph) {
+	let house_names = getHouseNames(graph);
+	let nodes = [];
+	house_names.forEach((element) => {
+		filteredNods = graph.nodes.filter((x) => x["house-birth"] == element);
+		nodes.push(filteredNods);
+	});
+
+	return nodes;
+}
+
 function getHouseNames(graph) {
 	const house = graph.nodes.reduce((house_birth, value) => {
 		if (!house_birth[value["house-birth"]]) {
@@ -323,7 +342,7 @@ function getHouseNames(graph) {
 	return houseNames;
 }
 
-function getUndefinedNames(graph){
+function getUndefinedNames(graph) {
 	const house = graph.nodes.reduce((house_birth, value) => {
 		if (!house_birth[value["house-birth"]]) {
 			house_birth[value["house-birth"]] = [];
@@ -331,8 +350,10 @@ function getUndefinedNames(graph){
 		house_birth[value["house-birth"]].push(value);
 		return house_birth;
 	}, {});
-	undefinedNames = []
-	house.undefined.forEach(e => {undefinedNames.push(e.name)})
+	undefinedNames = [];
+	house.undefined.forEach((e) => {
+		undefinedNames.push(e.name);
+	});
 	return undefinedNames;
 }
 
@@ -350,7 +371,6 @@ function setSvgLink(links) {
 	svgLink = [];
 	directedRelations = ["killed", "father", "mother"];
 	emptyArraySkipped = 0;
-	
 
 	for (i = 0; i < links.length; i++) {
 		// in case the first array length=0 and the second has elements
@@ -362,6 +382,7 @@ function setSvgLink(links) {
 					.attr("class", "link")
 					.lower()
 					.style("stroke", colors[relationType])
+					.style("stroke-width", 3)
 					.style("fill-opacity", 0)
 					.selectAll("path")
 					.data(links[i])
@@ -378,6 +399,7 @@ function setSvgLink(links) {
 					.lower()
 					.attr("class", "link")
 					.style("stroke", colors[relationType])
+					.style("stroke-width", 3)
 					.style("fill-opacity", 0)
 					.selectAll("path")
 					.data(links[i])
@@ -390,11 +412,13 @@ function setSvgLink(links) {
 	return svgLink;
 }
 
+function setSvgLabel() {}
+
 function setSvgNode(nodes, filtered_houseNames, houseNames) {
 	svgNode = [];
-	
+
 	for (i = 0; i < filtered_houseNames.length; i++) {
-		if(houseNames.includes(filtered_houseNames[i])){
+		if (houseNames.includes(filtered_houseNames[i])) {
 			svgNode[i] = svg
 				.append("g")
 				.attr("class", "nodes")
@@ -412,29 +436,27 @@ function setSvgNode(nodes, filtered_houseNames, houseNames) {
 						.on("drag", dragged)
 						.on("end", dragended)
 				);
-		}
-		else{
+		} else {
 			svgNode[i] = svg
-			.append("g")
-			.attr("class", "nodes")
-			.selectAll("image")
-			.data(nodes.filter((x) => x["name"] == filtered_houseNames[i]))
-			.enter()
-			.append("image")
-			.attr("xlink:href", "housesImages/" + filtered_houseNames[i] + ".png")
-			.attr("width", 70)
-			.attr("height", 70)
-			.call(
-				d3
-					.drag()
-					.on("start", dragstarted)
-					.on("drag", dragged)
-					.on("end", dragended)
-			);
-	}
+				.append("g")
+				.attr("class", "nodes")
+				.selectAll("image")
+				.data(nodes.filter((x) => x["name"] == filtered_houseNames[i]))
+				.enter()
+				.append("image")
+				.attr("xlink:href", "housesImages/" + filtered_houseNames[i] + ".png")
+				.attr("width", 70)
+				.attr("height", 70)
+				.call(
+					d3
+						.drag()
+						.on("start", dragstarted)
+						.on("drag", dragged)
+						.on("end", dragended)
+				);
+		}
 
-	
-	/*
+		/*
 	for (k = houseNames.length; k < undefinedNames.length + houseNames.length; k++) {
 		svgNode[k] = svg
 			.append("g")
@@ -457,10 +479,6 @@ function setSvgNode(nodes, filtered_houseNames, houseNames) {
 		console.log(nodes.filter((x) => x["name"] == undefinedNames[0]));
 		*/
 	}
-
-
-
-
 
 	return svgNode;
 }
@@ -490,6 +508,7 @@ function getDuplicatedLinks(links) {
 
 function getExistingsLinks(nodes, links) {
 	var all_nodes = [];
+
 	for (let i = 0; i < nodes.length; i++) {
 		nodes[i].forEach((element) => {
 			all_nodes.push(element.id);
@@ -570,5 +589,3 @@ function buildData(nodes, edges) {
 	});
 	return graph;
 }
-
-
