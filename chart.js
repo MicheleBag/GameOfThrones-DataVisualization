@@ -4,8 +4,8 @@
 // - gestire forze quando si aggiundono più relazioni
 */
 
-var width = 960,
-	height = 600;
+var width = document.getElementById("svg_container").clientWidth,
+	height = document.getElementById("svg_container").clientHeight;
 
 // Svg container
 var svg = d3
@@ -22,7 +22,7 @@ var svg = d3
 // gravity
 const forceX = d3.forceX(width / 2).strength(0.1);
 const forceY = d3.forceY(height / 2).strength(0.1);
-
+var charge = 500;
 var simulation = d3
 	.forceSimulation()
 	.force("initial_charge", d3.forceManyBody().strength(-1000))
@@ -191,7 +191,7 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 
 		// setting force based on #nodes rendered
 		svgNode = setSvgNode(graph.nodes, filteredHouse, house_names);
-		var forceNode = (-900 * nNods) / graph.nodes.length - 600;
+		forceNode = (-1500 * nNods) / graph.nodes.length - charge;
 		simulation.force("initial_charge", d3.forceManyBody().strength(forceNode));
 
 		// updating links
@@ -201,6 +201,16 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 		if (!d3.event.active) {
 			simulation.alpha(1).restart();
 		}
+	});
+
+	d3.select(".charge").on("change", function () {
+		var range = document.getElementsByName("charge");
+		console.log(range[0].value);
+		charge = range[0].value;
+
+		// updating nodes
+		var node_chkboxs = d3.selectAll(".filter_house");
+		node_chkboxs.dispatch("change");
 	});
 
 	svgLink = setSvgLink(links, duplicatedLinks);
@@ -411,8 +421,6 @@ function setSvgLink(links) {
 
 	return svgLink;
 }
-
-function setSvgLabel() {}
 
 function setSvgNode(nodes, filtered_houseNames, houseNames) {
 	svgNode = [];

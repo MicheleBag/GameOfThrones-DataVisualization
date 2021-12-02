@@ -4,11 +4,15 @@
 
 <body>
 <div>
-    <div style="width: 80%; float:left; border: solid; box-sizing: border-box;">
+    <div id="svg_container" style="width: 80%; float:left; border: solid; box-sizing: border-box;">
         <svg width="80%" height="100"></svg>
      </div>
      <div style="width: 20%; float:right" class="filter_options">
         <h1>Filter options</h1>
+        <h3>Nodes charge</h3>
+        
+        <input type="range" min="0" max="5000" value="500" class="charge" name="charge">
+        
         <h3>Relations</h3>
         <input class="filter_relation" value="family" type="checkbox" name="checkbtn_rel" >Family</input><br>
         <input class="filter_relation" value="killed" type="checkbox" name="checkbtn_rel" >Killed</input><br>
