@@ -1,7 +1,7 @@
 /* TODO : 
-// - gestire forze diverse
-// - aggiungere filtro nodi
-// - fixare sovrapposizione archi e posizione freccia
+// - AGGIUNGERE LABEL
+// - all'inizio non funziona il filtro archi
+// - gestire forze quando si aggiundono più relazioni
 */
 
 var width = 960,
@@ -25,7 +25,7 @@ const forceY = d3.forceY(height / 2).strength(0.1);
 
 var simulation = d3
 	.forceSimulation()
-	.force("charge", d3.forceManyBody().strength(-2000))
+	.force("initial_charge", d3.forceManyBody().strength(-1000))
 	.force("x", forceX)
 	.force("y", forceY);
 
@@ -36,7 +36,7 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 	var edges = xml.selectAll("edge")._groups[0];
 
 	graph = buildData(nodes, edges);
-	//console.log(graph.edges);
+	//console.log(graph);
 
 	// edges filtered by relation type
 	filteredLover = graph.edges.filter((x) => x.relation == "lover");
@@ -49,11 +49,27 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 	filteredSiblings = graph.edges.filter((x) => x.relation == "sibling");
 
 	var links = [];
+	var nods = graph.nodes;
+
+	house_names = getHouseNames(graph);
+	/*
+	console.log(house_names);
+    house_names.forEach((element) => {
+		if (element != "undefined") {
+			let x = graph.nodes.filter((x) => x["house-birth"] == element);
+			nods.push(x);
+		}
+	});
+	console.log(nods);
+    */
+
+	var filteredHouse = house_names;
+
 	// multiple edges on same node will be bended
 	var duplicatedLinks = [];
 
 	// handling edge filtering
-	d3.selectAll(".filter_button").on("change", function () {
+	d3.selectAll(".filter_relation").on("change", function () {
 		links = [];
 		d3.selectAll(".link").remove();
 		simulation.force("link_lover", null);
@@ -63,7 +79,7 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 		simulation.force("link_allegiance", null);
 		simulation.force("link_siblings", null);
 
-		var checkedBoxes = getCheckedBoxes("checkbtn");
+		var checkedBoxes = getCheckedBoxes("checkbtn_rel");
 		//console.log(checkedBoxes);
 		if (checkedBoxes != null) {
 			checkedBoxes.forEach((element) => {
@@ -118,6 +134,7 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 			});
 
 			duplicatedLinks = getDuplicatedLinks(links);
+			links = getExistingsLinks(nods, links);
 			svgLink = setSvgLink(links);
 		}
 		if (!d3.event.active) {
@@ -125,7 +142,59 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 		}
 	});
 
+	// handling nodes filtering
+	d3.selectAll(".filter_house").on("change", function () {
+		nods = [];
+		nNods = 0;
+		filteredHouse = [];
+		d3.selectAll(".nodes").remove();
+		d3.selectAll(".labels").remove();
+		simulation.force("initial_charge", null);
+
+		var checkedBoxes = getCheckedBoxes("checkbtn_nodes");
+		if (checkedBoxes != null) {
+			checkedBoxes.forEach((element) => {
+				// da considerare anche le casate senza "house" come prefisso
+				if (element == "undefined") filteredHouse.push(undefined);
+				else filteredHouse.push("House " + element);
+				filteredNods = graph.nodes.filter(
+					(x) => x["house-birth"] == "House " + element
+				);
+				nods.push(filteredNods);
+				nNods += filteredHouse.length;
+			});
+
+			/*label = svg
+				.append("g")
+				.attr("class", "labels")
+				.selectAll("text")
+				.data(nods)
+				.enter()
+				.append("text")
+				.attr("class", "label")
+				.text(function (d) {
+					return d.name;
+				});*/
+
+			svgNode = setSvgNode(graph.nodes, filteredHouse);
+			forceNode = (-2000 * nNods + 1) / graph.nodes.length;
+			simulation.force(
+				"initial_charge",
+				d3.forceManyBody().strength(forceNode)
+			);
+
+			// updating links
+			var rel_chkboxs = d3.selectAll(".filter_relation");
+			rel_chkboxs.dispatch("change");
+		}
+		if (!d3.event.active) {
+			simulation.alpha(1).restart();
+		}
+	});
+
 	svgLink = setSvgLink(links, duplicatedLinks);
+
+	svgNode = setSvgNode(nods, filteredHouse);
 
 	// arrow for straight line
 	svg
@@ -158,9 +227,6 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 		.attr("d", "M0,-2L4,0L0,2")
 		.style("fill", "black");
 
-	house_names = getHouseNames(graph);
-	svgNode = setSvgNode(graph.nodes, house_names);
-
 	var label = svg
 		.append("g")
 		.attr("class", "labels")
@@ -173,7 +239,7 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 			return d.name;
 		});
 
-	simulation.nodes(graph.nodes).on("tick", ticked);
+	simulation.nodes(nods).on("tick", ticked);
 
 	function ticked() {
 		//edge
@@ -267,39 +333,44 @@ function setSvgLink(links) {
 
 	svgLink = [];
 	directedRelations = ["killed", "father", "mother"];
+	emptyArraySkipped = 0;
+	console.log(links);
 
 	for (i = 0; i < links.length; i++) {
-		let relationType = links[i][0].relation;
-		if (directedRelations.includes(relationType)) {
-			svgLink[i] = svg
-				.append("g")
-				.attr("class", "link")
-				.lower()
-				.style("stroke", colors[relationType])
-				.style("fill-opacity", 0)
-				.selectAll("path")
-				.data(links[i])
-				.enter()
-				.append("path")
-				//.attr("marker-end", "#triangle-line");
-				.attr("marker-end", (d) =>
-					getDuplicatedLinks(links).includes(d)
-						? "url(#triangle-bend)"
-						: "url(#triangle)"
-				);
-		} else {
-			svgLink[i] = svg
-				.append("g")
-				.lower()
-				.attr("class", "link")
-				.style("stroke", colors[relationType])
-				.style("fill-opacity", 0)
-				.selectAll("path")
-				.data(links[i])
-				.enter()
-				.append("path");
-		}
+		// in case the first array length=0 and the second has elements
+		if (links[i].length > 0) {
+			let relationType = links[i][0].relation;
+			if (directedRelations.includes(relationType)) {
+				svgLink[i - emptyArraySkipped] = svg
+					.append("g")
+					.attr("class", "link")
+					.lower()
+					.style("stroke", colors[relationType])
+					.style("fill-opacity", 0)
+					.selectAll("path")
+					.data(links[i])
+					.enter()
+					.append("path")
+					.attr("marker-end", (d) =>
+						getDuplicatedLinks(links).includes(d)
+							? "url(#triangle-bend)"
+							: "url(#triangle)"
+					);
+			} else {
+				svgLink[i - emptyArraySkipped] = svg
+					.append("g")
+					.lower()
+					.attr("class", "link")
+					.style("stroke", colors[relationType])
+					.style("fill-opacity", 0)
+					.selectAll("path")
+					.data(links[i])
+					.enter()
+					.append("path");
+			}
+		} else emptyArraySkipped++;
 	}
+
 	return svgLink;
 }
 
@@ -349,6 +420,32 @@ function getDuplicatedLinks(links) {
 		}
 	}
 	return duplicatedLinks;
+}
+
+function getExistingsLinks(nodes, links) {
+	var all_nodes = [];
+	for (let i = 0; i < nodes.length; i++) {
+		nodes[i].forEach((element) => {
+			all_nodes.push(element.id);
+		});
+	}
+
+	for (let i = 0; i < links.length; i++) {
+		var links_to_remove = [];
+		links[i].forEach((element, index) => {
+			if (
+				!(
+					all_nodes.includes(element.source.id) &&
+					all_nodes.includes(element.target.id)
+				)
+			) {
+				links_to_remove.push(index);
+			}
+		});
+		// remove links which nodes dont exists
+		links[i] = links[i].filter((e) => !links_to_remove.includes(e.index));
+	}
+	return links;
 }
 
 function getCheckedBoxes(chkboxName) {
