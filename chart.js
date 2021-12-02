@@ -36,7 +36,7 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 	var edges = xml.selectAll("edge")._groups[0];
 
 	graph = buildData(nodes, edges);
-	//console.log(graph);
+
 
 	// edges filtered by relation type
 	filteredLover = graph.edges.filter((x) => x.relation == "lover");
@@ -247,6 +247,7 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 		.attr("d", "M0,-2L4,0L0,2")
 		.style("fill", "black");
 
+		
 	var label = svg
 		.append("g")
 		.attr("class", "labels")
@@ -311,19 +312,41 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 	}
 });
 
+var tooltip = d3.select("#container")
+	.append("div")
+	.style("position", "absolute")
+    .style("visibility", "hidden")
+    .style("background-color", "white")
+    .style("border", "solid")
+    .style("border-width", "1px")
+    .style("border-radius", "5px")
+    .style("padding", "10px")
+
+var dragActive = false
+
 function dragstarted(d) {
+	dragActive = true
+	tooltip.style("visibility", "hidden");
+	tooltip.transition().duration(200).style("opacity", "0");
+	tooltip.style("top", (event.pageY)+"px").style("left",(event.pageX)+"px")
 	if (!d3.event.active) simulation.alphaTarget(0.3).restart();
+	dragActive = false
 }
 
 function dragged(d) {
+	dragActive = true
+	tooltip.style("visibility", "hidden");
 	d.fx = d3.event.x;
 	d.fy = d3.event.y;
+	//dragActive = false
 }
 
 function dragended(d) {
-	if (!d3.event.active) simulation.alphaTarget(0);
+	dragActive = true
+	tooltip.style("visibility", "hidden");
 	d.fx = null;
 	d.fy = null;
+	dragActive = false
 }
 
 function allNodesByHouses(graph) {
@@ -422,6 +445,7 @@ function setSvgLink(links) {
 	return svgLink;
 }
 
+
 function setSvgNode(nodes, filtered_houseNames, houseNames) {
 	svgNode = [];
 
@@ -437,6 +461,8 @@ function setSvgNode(nodes, filtered_houseNames, houseNames) {
 				.attr("xlink:href", "housesImages/" + filtered_houseNames[i] + ".png")
 				.attr("width", 70)
 				.attr("height", 70)
+				.on("mouseover", mouseover)
+    			.on("mouseout", mouseout)
 				.call(
 					d3
 						.drag()
@@ -455,6 +481,8 @@ function setSvgNode(nodes, filtered_houseNames, houseNames) {
 				.attr("xlink:href", "housesImages/" + filtered_houseNames[i] + ".png")
 				.attr("width", 70)
 				.attr("height", 70)
+				.on("mouseover", mouseover)
+    			.on("mouseout", mouseout)
 				.call(
 					d3
 						.drag()
@@ -464,28 +492,9 @@ function setSvgNode(nodes, filtered_houseNames, houseNames) {
 				);
 		}
 
-		/*
-	for (k = houseNames.length; k < undefinedNames.length + houseNames.length; k++) {
-		svgNode[k] = svg
-			.append("g")
-			.attr("class", "nodes")
-			.selectAll("image")
-			.data(nodes.filter((x) => x["name"] == undefinedNames[k - houseNames.length ]))
-			.enter()
-			.append("image")
-			.attr("xlink:href", "housesImages/" + undefinedNames[k - houseNames.length ] + ".png")
-			.attr("width", 70)
-			.attr("height", 70)
-			.call(
-				d3
-					.drag()
-					.on("start", dragstarted)
-					.on("drag", dragged)
-					.on("end", dragended)
-			);
-
-		console.log(nodes.filter((x) => x["name"] == undefinedNames[0]));
-		*/
+		
+	
+	
 	}
 
 	return svgNode;
@@ -597,3 +606,35 @@ function buildData(nodes, edges) {
 	});
 	return graph;
 }
+
+  var mouseover = function(d) {
+	  console.log(d)
+	 if(dragActive == false){
+		var house = d["house-birth"]
+		var group = d["group"]
+		if(house != undefined){
+			tooltip.html("Status: "+ d.status+"<br> House: "+house);
+		}
+		else{
+			tooltip.html("Status: "+ d.status+"<br> Group: "+group);
+		}
+		tooltip.style("visibility", "visible");
+		tooltip.transition().duration(200).style("opacity", "1");
+		tooltip.style("top", (event.pageY+30)+"px").style("left",(event.pageX)+"px")
+	 }
+  }
+
+  var mouseout = function(d) {
+	if(dragActive == false){
+		tooltip.transition().duration(200).style("opacity", "0");
+		tooltip.style("visibility", "hidden")
+	 }
+  }
+
+
+
+
+
+
+  
+
