@@ -1,9 +1,9 @@
 # GameOfThrones-DataVisualization
 
 # Usage
-start simple http server: 
-1. cd to your project folder path
-2. run "python -m http.server"
+1. ```cd your/path/to/project/folder```
+2. run ```python -m http.server``` (start simple http server)
+3. open ```home.html```
 
 OR
 
