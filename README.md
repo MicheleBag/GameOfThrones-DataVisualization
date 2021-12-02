@@ -1,5 +1,4 @@
-<html>  
-    <head>
+     <head>
         <title>GoT-Data Visualization</title>
     </head>
     <style>
@@ -81,4 +80,4 @@
         <!-- Include our script -->
         <script type="text/javascript" src="chart.js"></script>
     </body>
-</html>
+
