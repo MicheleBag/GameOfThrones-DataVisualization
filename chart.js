@@ -1,9 +1,4 @@
-/* TODO : 
-// - AGGIUNGERE LABEL
-// 
-// - gestire forze quando si aggiundono più relazioni
-*/
-
+// svg size
 var width = document.getElementById("svg_container").clientWidth,
 	height = document.getElementById("svg_container").clientHeight;
 
@@ -22,7 +17,10 @@ var svg = d3
 // gravity
 const forceX = d3.forceX(width / 2).strength(0.1);
 const forceY = d3.forceY(height / 2).strength(0.1);
+
+// charge is set with range input, default=500
 var charge = 500;
+// init force simulation
 var simulation = d3
 	.forceSimulation()
 	.force("initial_charge", d3.forceManyBody().strength(-1000))
@@ -35,8 +33,8 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 	var nodes = xml.selectAll("node")._groups[0];
 	var edges = xml.selectAll("edge")._groups[0];
 
+	// get graph in a more useful format (like json instead of xml)
 	graph = buildData(nodes, edges);
-
 
 	// edges filtered by relation type
 	filteredLover = graph.edges.filter((x) => x.relation == "lover");
@@ -61,12 +59,14 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 	filteredHouse = house_names.concat(undefined_names);
 
 	// multiple edges on same node will be bended
-	var duplicatedLinks = [];
+	var multipleLinks = [];
 
 	// handling edge filtering
 	d3.selectAll(".filter_relation").on("change", function () {
 		links = [];
+		//remove all links from svg
 		d3.selectAll(".link").remove();
+		// delete link forces
 		simulation.force("link_lover", null);
 		simulation.force("link_killed", null);
 		simulation.force("link_parents", null);
@@ -75,9 +75,10 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 		simulation.force("link_siblings", null);
 
 		var checkedBoxes = getCheckedBoxes("checkbtn_rel");
-		//console.log(checkedBoxes);
+
 		if (checkedBoxes != null) {
 			checkedBoxes.forEach((element) => {
+				// set forces of selected relation
 				switch (element) {
 					case "lover":
 						links.push(filteredLover);
@@ -128,8 +129,11 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 				}
 			});
 
-			duplicatedLinks = getDuplicatedLinks(links);
+			// get multiple links on same nodes
+			multipleLinks = getMultipleLinks(links);
+			// filter links with endpoint exists in the simulation
 			links = getExistingsLinks(nods, links);
+			// links to draw
 			svgLink = setSvgLink(links);
 		}
 		if (!d3.event.active) {
@@ -139,8 +143,11 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 
 	// handling nodes filtering
 	d3.selectAll(".filter_house").on("change", function () {
+		// nods contains all filtered nodes by house names
 		nods = [];
+		// # nods
 		nNods = 0;
+		// contains selected house names
 		filteredHouse = [];
 		d3.selectAll(".nodes").remove();
 		d3.selectAll(".labels").remove();
@@ -189,8 +196,9 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 				return d.name;
 			});
 
-		// setting force based on #nodes rendered
 		svgNode = setSvgNode(graph.nodes, filteredHouse, house_names);
+		// setting force based on #nodes rendered
+		// charge is set by user
 		forceNode = (-1500 * nNods) / graph.nodes.length - charge;
 		simulation.force("initial_charge", d3.forceManyBody().strength(forceNode));
 
@@ -203,6 +211,7 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 		}
 	});
 
+	// on change range bar updates nodes force
 	d3.select(".charge").on("change", function () {
 		var range = document.getElementsByName("charge");
 		console.log(range[0].value);
@@ -213,7 +222,8 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 		node_chkboxs.dispatch("change");
 	});
 
-	svgLink = setSvgLink(links, duplicatedLinks);
+	// set initial nodes&edges to draw
+	svgLink = setSvgLink(links, multipleLinks);
 	svgNode = setSvgNode(graph.nodes, filteredHouse, house_names);
 
 	// arrow for straight line
@@ -247,7 +257,6 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 		.attr("d", "M0,-2L4,0L0,2")
 		.style("fill", "black");
 
-		
 	var label = svg
 		.append("g")
 		.attr("class", "labels")
@@ -260,16 +269,16 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 			return d.name;
 		});
 
+	//draw the nodes and links where they currently are in the simulation
 	simulation.nodes(graph.nodes).on("tick", ticked);
 
 	function ticked() {
-		//edge
+		// define links path
 		for (i = 0; i < svgLink.length; i++) {
 			svgLink[i].attr("d", function (d) {
 				dx = d.target.x - d.source.x;
 				dy = d.target.y - d.source.y;
-				if (duplicatedLinks.includes(d))
-					dr = Math.sqrt(dx * dx + dy * dy) * 0.8;
+				if (multipleLinks.includes(d)) dr = Math.sqrt(dx * dx + dy * dy) * 0.8;
 				else dr = 0;
 
 				return (
@@ -289,7 +298,7 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 			});
 		}
 
-		//node
+		// define nodes position
 		for (i = 0; i < svgNode.length; i++) {
 			svgNode[i]
 				.attr("x", function (d) {
@@ -300,6 +309,7 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 				});
 		}
 
+		// define labels position
 		label
 			.attr("x", function (d) {
 				return d.x + 40;
@@ -312,43 +322,46 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 	}
 });
 
-var tooltip = d3.select("#container")
+// define info tooltip that appears on mouse over node
+var tooltip = d3
+	.select("#container")
 	.append("div")
 	.style("position", "absolute")
-    .style("visibility", "hidden")
-    .style("background-color", "white")
-    .style("border", "solid")
-    .style("border-width", "1px")
-    .style("border-radius", "5px")
-    .style("padding", "10px")
+	.style("visibility", "hidden")
+	.style("background-color", "white")
+	.style("border", "solid")
+	.style("border-width", "1px")
+	.style("border-radius", "5px")
+	.style("padding", "10px");
 
-var dragActive = false
+var dragActive = false;
 
 function dragstarted(d) {
-	dragActive = true
+	dragActive = true;
+	// hide tooltip with a fading animation
 	tooltip.style("visibility", "hidden");
-	tooltip.transition().duration(200).style("opacity", "0");
-	tooltip.style("top", (event.pageY)+"px").style("left",(event.pageX)+"px")
 	if (!d3.event.active) simulation.alphaTarget(0.3).restart();
-	dragActive = false
+	dragActive = false;
 }
 
 function dragged(d) {
-	dragActive = true
+	dragActive = true;
+	// hide tooltip
 	tooltip.style("visibility", "hidden");
 	d.fx = d3.event.x;
 	d.fy = d3.event.y;
-	//dragActive = false
 }
 
 function dragended(d) {
-	dragActive = true
+	dragActive = true;
+	// hide tooltip
 	tooltip.style("visibility", "hidden");
 	d.fx = null;
 	d.fy = null;
-	dragActive = false
+	dragActive = false;
 }
 
+// return all nodes grouped by house-birth
 function allNodesByHouses(graph) {
 	let house_names = getHouseNames(graph);
 	let nodes = [];
@@ -360,7 +373,9 @@ function allNodesByHouses(graph) {
 	return nodes;
 }
 
+// return list of all house names
 function getHouseNames(graph) {
+	// get all nodes based on house-birth with a reduce op
 	const house = graph.nodes.reduce((house_birth, value) => {
 		if (!house_birth[value["house-birth"]]) {
 			house_birth[value["house-birth"]] = [];
@@ -375,7 +390,9 @@ function getHouseNames(graph) {
 	return houseNames;
 }
 
+// return array name of nodes with house==undefined
 function getUndefinedNames(graph) {
+	// get all nodes based on house-birth with a reduce op
 	const house = graph.nodes.reduce((house_birth, value) => {
 		if (!house_birth[value["house-birth"]]) {
 			house_birth[value["house-birth"]] = [];
@@ -391,6 +408,7 @@ function getUndefinedNames(graph) {
 }
 
 function setSvgLink(links) {
+	//set of color for edges
 	var colors = {
 		lover: "#f000e8", // violet
 		killed: "#ff1900", // red
@@ -403,13 +421,18 @@ function setSvgLink(links) {
 
 	svgLink = [];
 	directedRelations = ["killed", "father", "mother"];
+	// it needs to create a consistend svgLink array
+	// when links[i].length is 0, an index is skipped!!
 	emptyArraySkipped = 0;
 
 	for (i = 0; i < links.length; i++) {
 		// in case the first array length=0 and the second has elements
 		if (links[i].length > 0) {
+			// first element is enough because relation in the same array are the same
 			let relationType = links[i][0].relation;
+			// check if relation is oriented
 			if (directedRelations.includes(relationType)) {
+				//this svg draw the arrow at the end of the line
 				svgLink[i - emptyArraySkipped] = svg
 					.append("g")
 					.attr("class", "link")
@@ -422,7 +445,8 @@ function setSvgLink(links) {
 					.enter()
 					.append("path")
 					.attr("marker-end", (d) =>
-						getDuplicatedLinks(links).includes(d)
+						// if the link is the second with the second endpoints the arrow will be bended
+						getMultipleLinks(links).includes(d)
 							? "url(#triangle-bend)"
 							: "url(#triangle)"
 					);
@@ -445,12 +469,14 @@ function setSvgLink(links) {
 	return svgLink;
 }
 
-
 function setSvgNode(nodes, filtered_houseNames, houseNames) {
 	svgNode = [];
 
 	for (i = 0; i < filtered_houseNames.length; i++) {
+		// check if selected housename are included in all housenames set
+		// (undefined name are not included)
 		if (houseNames.includes(filtered_houseNames[i])) {
+			// nodes to draw
 			svgNode[i] = svg
 				.append("g")
 				.attr("class", "nodes")
@@ -462,7 +488,7 @@ function setSvgNode(nodes, filtered_houseNames, houseNames) {
 				.attr("width", 70)
 				.attr("height", 70)
 				.on("mouseover", mouseover)
-    			.on("mouseout", mouseout)
+				.on("mouseout", mouseout)
 				.call(
 					d3
 						.drag()
@@ -471,6 +497,7 @@ function setSvgNode(nodes, filtered_houseNames, houseNames) {
 						.on("end", dragended)
 				);
 		} else {
+			// nodes to draw with house==undefined
 			svgNode[i] = svg
 				.append("g")
 				.attr("class", "nodes")
@@ -482,7 +509,7 @@ function setSvgNode(nodes, filtered_houseNames, houseNames) {
 				.attr("width", 70)
 				.attr("height", 70)
 				.on("mouseover", mouseover)
-    			.on("mouseout", mouseout)
+				.on("mouseout", mouseout)
 				.call(
 					d3
 						.drag()
@@ -491,16 +518,12 @@ function setSvgNode(nodes, filtered_houseNames, houseNames) {
 						.on("end", dragended)
 				);
 		}
-
-		
-	
-	
 	}
-
 	return svgNode;
 }
 
-function getDuplicatedLinks(links) {
+// check if there are multiple edges on a couple of nodes in a set of links
+function getMultipleLinks(links) {
 	var allLinks = [];
 	links.forEach((e) => {
 		e.forEach((link) => {
@@ -508,7 +531,7 @@ function getDuplicatedLinks(links) {
 		});
 	});
 
-	var duplicatedLinks = [];
+	var multipleLinks = [];
 	for (let i = 0; i < allLinks.length; i++) {
 		const edge = allLinks[i];
 		for (let j = i + 1; j < allLinks.length; j++) {
@@ -517,12 +540,13 @@ function getDuplicatedLinks(links) {
 				(edge.source == edge2.source && edge.target == edge2.target) ||
 				(edge.source == edge2.target && edge.target == edge2.source)
 			)
-				duplicatedLinks.push(edge);
+				multipleLinks.push(edge);
 		}
 	}
-	return duplicatedLinks;
+	return multipleLinks;
 }
 
+// given nodes and links return a set of links which both endpoinds exists in set nodes
 function getExistingsLinks(nodes, links) {
 	var all_nodes = [];
 
@@ -550,6 +574,7 @@ function getExistingsLinks(nodes, links) {
 	return links;
 }
 
+// return checked checkboxes given checkboxs name
 function getCheckedBoxes(chkboxName) {
 	var checkboxes = document.getElementsByName(chkboxName);
 	var checkboxesChecked = [];
@@ -572,9 +597,9 @@ function buildData(nodes, edges) {
 	var list = [nodes, edges];
 	var nodesLength = nodes.length;
 	var workingOnEdges = false;
+
 	// for each xml childnode create a new row in attributes obj
 	// and than push it into nodes/edges
-
 	list.forEach((category) => {
 		category.forEach((element) => {
 			if (category.length > nodesLength) workingOnEdges = true;
@@ -582,15 +607,16 @@ function buildData(nodes, edges) {
 			element.childNodes.forEach((childNode) => {
 				// check if it's a useful datafield
 				if (childNode.nodeValue == null) {
+					// insert node attributes and node id
 					attributes[childNode.attributes.key.nodeValue] = childNode.innerHTML;
 					if (!workingOnEdges)
 						attributes["id"] = element.attributes.id.nodeValue;
-
+					// handle undefined house-birth
 					if (childNode.attributes.key.nodeValue == "group") {
 						if (attributes["house-birth"] == undefined)
 							attributes["house-birth"] = childNode.innerHTML;
 					}
-					// add edge endpoints
+					// add edge endpoints & orientation info
 					if (workingOnEdges) {
 						attributes["source"] = element.attributes.source.nodeValue;
 						attributes["target"] = element.attributes.target.nodeValue;
@@ -607,34 +633,34 @@ function buildData(nodes, edges) {
 	return graph;
 }
 
-  var mouseover = function(d) {
-	  console.log(d)
-	 if(dragActive == false){
-		var house = d["house-birth"]
-		var group = d["group"]
-		if(house != undefined){
-			tooltip.html("Name: "+d.name+"<br> Status: "+ d.status+"<br> House: "+house);
-		}
-		else{
-			tooltip.html("Name: "+d.name+"<br> Status: "+ d.status+"<br> Group: "+group);
+// on mouse over render tooltip
+var mouseover = function (d) {
+	console.log(d);
+	// check if user is dragging a node
+	if (dragActive == false) {
+		var house = d["house-birth"];
+		var group = d["group"];
+		if (house != undefined) {
+			tooltip.html(
+				"Name: " + d.name + "<br> Status: " + d.status + "<br> House: " + house
+			);
+		} else {
+			tooltip.html(
+				"Name: " + d.name + "<br> Status: " + d.status + "<br> Group: " + group
+			);
 		}
 		tooltip.style("visibility", "visible");
 		tooltip.transition().duration(200).style("opacity", "1");
-		tooltip.style("top", (event.pageY+30)+"px").style("left",(event.pageX)+"px")
-	 }
-  }
+		tooltip
+			.style("top", event.pageY + 30 + "px")
+			.style("left", event.pageX + "px");
+	}
+};
 
-  var mouseout = function(d) {
-	if(dragActive == false){
+// on mouse out hide tooltip
+var mouseout = function (d) {
+	if (dragActive == false) {
 		tooltip.transition().duration(200).style("opacity", "0");
-		tooltip.style("visibility", "hidden")
-	 }
-  }
-
-
-
-
-
-
-  
-
+		tooltip.style("visibility", "hidden");
+	}
+};
