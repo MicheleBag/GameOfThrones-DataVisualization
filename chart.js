@@ -392,12 +392,12 @@ function getUndefinedNames(graph) {
 
 function setSvgLink(links) {
 	var colors = {
-		lover: "#ff00ee", // violet
+		lover: "#f000e8", // violet
 		killed: "#ff1900", // red
 		father: "#003cff", // blue
 		mother: "#003cff", // blue
 		sibling: "#003cff", // blue
-		spouse: "#ff9494", // pink
+		spouse: "#8a4e00", // brown
 		allegiance: "#009614", // green
 	};
 
@@ -613,10 +613,10 @@ function buildData(nodes, edges) {
 		var house = d["house-birth"]
 		var group = d["group"]
 		if(house != undefined){
-			tooltip.html("Status: "+ d.status+"<br> House: "+house);
+			tooltip.html("Name: "+d.name+"<br> Status: "+ d.status+"<br> House: "+house);
 		}
 		else{
-			tooltip.html("Status: "+ d.status+"<br> Group: "+group);
+			tooltip.html("Name: "+d.name+"<br> Status: "+ d.status+"<br> Group: "+group);
 		}
 		tooltip.style("visibility", "visible");
 		tooltip.transition().duration(200).style("opacity", "1");
