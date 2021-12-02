@@ -52,18 +52,10 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 	var nods = graph.nodes;
 
 	house_names = getHouseNames(graph);
-	/*
-	console.log(house_names);
-    house_names.forEach((element) => {
-		if (element != "undefined") {
-			let x = graph.nodes.filter((x) => x["house-birth"] == element);
-			nods.push(x);
-		}
-	});
-	console.log(nods);
-    */
+	undefined_names = getUndefinedNames(graph)
+	filtered_nodes = house_names.concat(undefined_names)
 
-	var filteredHouse = house_names;
+	var filteredHouse = house_names.concat(undefined_names);
 
 	// multiple edges on same node will be bended
 	var duplicatedLinks = [];
@@ -155,10 +147,14 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 		if (checkedBoxes != null) {
 			checkedBoxes.forEach((element) => {
 				// da considerare anche le casate senza "house" come prefisso
-				if (element == "undefined") filteredHouse.push(undefined);
-				else filteredHouse.push("House " + element);
+				if (element == "undefined"){
+					undefined_names.forEach(element=>{
+						filteredHouse.push(element);
+					})
+				}
+				else filteredHouse.push(element);
 				filteredNods = graph.nodes.filter(
-					(x) => x["house-birth"] == "House " + element
+					(x) => x["house-birth"] == element 
 				);
 				nods.push(filteredNods);
 				nNods += filteredHouse.length;
@@ -175,8 +171,9 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 				.text(function (d) {
 					return d.name;
 				});*/
-
-			svgNode = setSvgNode(graph.nodes, filteredHouse);
+			console.log(filteredHouse)
+			console.log(house_names)
+			svgNode = setSvgNode(graph.nodes, filteredHouse, house_names);
 			forceNode = (-2000 * nNods + 1) / graph.nodes.length;
 			simulation.force(
 				"initial_charge",
@@ -193,8 +190,9 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 	});
 
 	svgLink = setSvgLink(links, duplicatedLinks);
+	console.log(filteredHouse)
+	svgNode = setSvgNode(nods, filteredHouse, house_names);
 
-	svgNode = setSvgNode(nods, filteredHouse);
 
 	// arrow for straight line
 	svg
@@ -226,6 +224,10 @@ d3.xml("Dataset/got-dataset.xml", function (data) {
 		.append("path")
 		.attr("d", "M0,-2L4,0L0,2")
 		.style("fill", "black");
+
+
+	
+	
 
 	var label = svg
 		.append("g")
@@ -317,7 +319,21 @@ function getHouseNames(graph) {
 	houseNames = Object.keys(house);
 	//add groups of nodes without a house-birth
 	houseNames.push(undefined);
+
 	return houseNames;
+}
+
+function getUndefinedNames(graph){
+	const house = graph.nodes.reduce((house_birth, value) => {
+		if (!house_birth[value["house-birth"]]) {
+			house_birth[value["house-birth"]] = [];
+		}
+		house_birth[value["house-birth"]].push(value);
+		return house_birth;
+	}, {});
+	undefinedNames = []
+	house.undefined.forEach(e => {undefinedNames.push(e.name)})
+	return undefinedNames;
 }
 
 function setSvgLink(links) {
@@ -334,7 +350,7 @@ function setSvgLink(links) {
 	svgLink = [];
 	directedRelations = ["killed", "father", "mother"];
 	emptyArraySkipped = 0;
-	console.log(links);
+	
 
 	for (i = 0; i < links.length; i++) {
 		// in case the first array length=0 and the second has elements
@@ -374,17 +390,38 @@ function setSvgLink(links) {
 	return svgLink;
 }
 
-function setSvgNode(nodes, houseNames) {
+function setSvgNode(nodes, filtered_houseNames, houseNames) {
 	svgNode = [];
-	for (i = 0; i < houseNames.length; i++) {
-		svgNode[i] = svg
+	
+	for (i = 0; i < filtered_houseNames.length; i++) {
+		if(houseNames.includes(filtered_houseNames[i])){
+			svgNode[i] = svg
+				.append("g")
+				.attr("class", "nodes")
+				.selectAll("image")
+				.data(nodes.filter((x) => x["house-birth"] == filtered_houseNames[i]))
+				.enter()
+				.append("image")
+				.attr("xlink:href", "housesImages/" + filtered_houseNames[i] + ".png")
+				.attr("width", 70)
+				.attr("height", 70)
+				.call(
+					d3
+						.drag()
+						.on("start", dragstarted)
+						.on("drag", dragged)
+						.on("end", dragended)
+				);
+		}
+		else{
+			svgNode[i] = svg
 			.append("g")
 			.attr("class", "nodes")
 			.selectAll("image")
-			.data(nodes.filter((x) => x["house-birth"] == houseNames[i]))
+			.data(nodes.filter((x) => x["name"] == filtered_houseNames[i]))
 			.enter()
 			.append("image")
-			.attr("xlink:href", "housesImages/" + houseNames[i] + ".png")
+			.attr("xlink:href", "housesImages/" + filtered_houseNames[i] + ".png")
 			.attr("width", 70)
 			.attr("height", 70)
 			.call(
@@ -395,6 +432,35 @@ function setSvgNode(nodes, houseNames) {
 					.on("end", dragended)
 			);
 	}
+
+	
+	/*
+	for (k = houseNames.length; k < undefinedNames.length + houseNames.length; k++) {
+		svgNode[k] = svg
+			.append("g")
+			.attr("class", "nodes")
+			.selectAll("image")
+			.data(nodes.filter((x) => x["name"] == undefinedNames[k - houseNames.length ]))
+			.enter()
+			.append("image")
+			.attr("xlink:href", "housesImages/" + undefinedNames[k - houseNames.length ] + ".png")
+			.attr("width", 70)
+			.attr("height", 70)
+			.call(
+				d3
+					.drag()
+					.on("start", dragstarted)
+					.on("drag", dragged)
+					.on("end", dragended)
+			);
+
+		console.log(nodes.filter((x) => x["name"] == undefinedNames[0]));
+		*/
+	}
+
+
+
+
 
 	return svgNode;
 }
@@ -504,3 +570,5 @@ function buildData(nodes, edges) {
 	});
 	return graph;
 }
+
+
